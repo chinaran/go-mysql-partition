@@ -12,13 +12,13 @@ const (
 )
 
 type Partition struct {
-	dbName    string // 数据库名
-	tableName string // 数据表名
-	partTv    int64  // 分区间隔
-	reserveTv int64  // 分区保留时间
-	condUnit  int64  // 时间戳单位(秒: 1，毫秒：1000，以此类推)
-	newNum    int64  // 要新创建分区的个数
-	maxTime   int64  // 当前分区的最大时间（不包括多创建的分区）
+	DbName    string // 数据库名
+	TableName string // 数据表名
+	PartTv    int64  // 分区间隔
+	ReserveTv int64  // 分区保留时间
+	CondUnit  int64  // 时间戳单位(秒: 1，毫秒：1000，以此类推)
+	NewNum    int64  // 要新创建分区的个数
+	MaxTime   int64  // 当前分区的最大时间（不包括多创建的分区）
 }
 
 func init() {
@@ -27,7 +27,7 @@ func init() {
 
 func (p *Partition) addPartition(db *sql.DB, no, cond int64) error {
 	sql := fmt.Sprintf("alter table %s.%s add partition (partition p%d values less than(%d) ENGINE = InnoDB)",
-		p.dbName, p.tableName, no, cond*p.condUnit)
+		p.DbName, p.TableName, no, cond*p.CondUnit)
 
 	_, err := db.Exec(sql)
 	if err != nil {
@@ -40,7 +40,7 @@ func (p *Partition) addPartition(db *sql.DB, no, cond int64) error {
 
 func (p *Partition) delPartition(db *sql.DB, no int64) error {
 	sql := fmt.Sprintf("alter table %s.%s drop partition p%d",
-		p.dbName, p.tableName, no)
+		p.DbName, p.TableName, no)
 
 	_, err := db.Exec(sql)
 	if err != nil {
@@ -52,11 +52,11 @@ func (p *Partition) delPartition(db *sql.DB, no int64) error {
 }
 
 func (p *Partition) IsNeedAddPartition(now int64) bool {
-	return (now >= p.maxTime)
+	return (now >= p.MaxTime)
 }
 
 func (p *Partition) GetCurrentPartition(db *sql.DB) (map[int64]int64, error) {
-	sql := fmt.Sprintf("SELECT substring(PARTITION_NAME, 2), PARTITION_DESCRIPTION FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = '%s' and TABLE_NAME = '%s'", p.dbName, p.tableName)
+	sql := fmt.Sprintf("SELECT substring(PARTITION_NAME, 2), PARTITION_DESCRIPTION FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = '%s' and TABLE_NAME = '%s'", p.DbName, p.TableName)
 	rows, err := db.Query(sql)
 	if err != nil {
 		return nil, err
@@ -86,10 +86,10 @@ func (p *Partition) HandlePartitionByDay(db *sql.DB, now int64, addHistoryPartit
 	// step 2: 创建新分区
 	var i, firstStart, start, end int64
 	now += BJ_SEC
-	firstStart = (now-p.reserveTv)/p.partTv - 1
-	start = now/p.partTv - p.newNum
-	end = now/p.partTv + p.newNum
-	p.maxTime = now/p.partTv*p.partTv + p.partTv - BJ_SEC
+	firstStart = (now-p.ReserveTv)/p.PartTv - 1
+	start = now/p.PartTv - p.NewNum
+	end = now/p.PartTv + p.NewNum
+	p.MaxTime = now/p.PartTv*p.PartTv + p.PartTv - BJ_SEC
 
 	if addHistoryPartition {
 		i = firstStart
@@ -99,7 +99,7 @@ func (p *Partition) HandlePartitionByDay(db *sql.DB, now int64, addHistoryPartit
 
 	for ; i <= end; i++ {
 		if _, ok := m[i]; !ok {
-			p.addPartition(db, i, i*p.partTv+p.partTv-BJ_SEC)
+			p.addPartition(db, i, i*p.PartTv+p.PartTv-BJ_SEC)
 		}
 	}
 
