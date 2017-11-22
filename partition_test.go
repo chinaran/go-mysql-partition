@@ -12,6 +12,7 @@ import (
 func TestPartition(t *testing.T) {
 	// step 1: 连接数据库
 	db := initSqlConn("xx", "xx", "127.0.0.1", "test", 3306)
+	defer db.Close()
 
 	// step 2: 创建测试表
 	sql := `
