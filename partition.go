@@ -7,10 +7,11 @@ import (
 )
 
 const (
-	DAY_SEC = (24 * 60 * 60)
-	BJ_SEC  = (8 * 60 * 60) // 北京时间多8个小时（时区影响）
+	DAY_SEC = (24 * 60 * 60) // 每天的秒数
+	BJ_SEC  = (8 * 60 * 60)  // 北京时间多8个小时（时区影响）
 )
 
+/* 分区结构 */
 type Partition struct {
 	DbName    string // 数据库名
 	TableName string // 数据表名
@@ -21,10 +22,12 @@ type Partition struct {
 	MaxTime   int64  // 当前分区的最大时间（不包括多创建的分区）
 }
 
+// 初始化日志
 func init() {
 	log.SetFlags(log.LstdFlags)
 }
 
+// addPartition 根据分区号和条件添加分区
 func (p *Partition) addPartition(db *sql.DB, no, cond int64) error {
 	sql := fmt.Sprintf("alter table %s.%s add partition (partition p%d values less than(%d) ENGINE = InnoDB)",
 		p.DbName, p.TableName, no, cond*p.CondUnit)
@@ -38,6 +41,7 @@ func (p *Partition) addPartition(db *sql.DB, no, cond int64) error {
 	return nil
 }
 
+// delPartition 根据分区号删除分区
 func (p *Partition) delPartition(db *sql.DB, no int64) error {
 	sql := fmt.Sprintf("alter table %s.%s drop partition p%d",
 		p.DbName, p.TableName, no)
@@ -51,10 +55,12 @@ func (p *Partition) delPartition(db *sql.DB, no int64) error {
 	return nil
 }
 
+// IsNeedAddPartition 检查是否需要添加该分区
 func (p *Partition) IsNeedAddPartition(now int64) bool {
 	return (now >= p.MaxTime)
 }
 
+// GetCurrentPartition 获取当前分区
 func (p *Partition) GetCurrentPartition(db *sql.DB) (map[int64]int64, error) {
 	sql := fmt.Sprintf("SELECT substring(PARTITION_NAME, 2), PARTITION_DESCRIPTION FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_SCHEMA = '%s' and TABLE_NAME = '%s'", p.DbName, p.TableName)
 	rows, err := db.Query(sql)
@@ -76,6 +82,7 @@ func (p *Partition) GetCurrentPartition(db *sql.DB) (map[int64]int64, error) {
 	return m, nil
 }
 
+// HandlePartitionByDay 根据天数管理分区
 func (p *Partition) HandlePartitionByDay(db *sql.DB, now int64, addHistoryPartition bool) error {
 	// step 1: 获取当前的分区
 	m, err := p.GetCurrentPartition(db)
